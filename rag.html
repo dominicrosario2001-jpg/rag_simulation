@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>RAG Simulator</title>
+
+<style>
+
+body{
+font-family:Arial, sans-serif;
+background:#0f172a;
+color:white;
+margin:0;
+padding:30px;
+}
+
+h1{
+text-align:center;
+margin-bottom:30px;
+}
+
+.container{
+max-width:1100px;
+margin:auto;
+}
+
+.card{
+background:#1e293b;
+padding:20px;
+border-radius:10px;
+margin-bottom:20px;
+}
+
+textarea{
+width:100%;
+height:100px;
+border-radius:8px;
+padding:10px;
+border:none;
+margin-top:10px;
+}
+
+input{
+width:100%;
+padding:10px;
+border-radius:8px;
+border:none;
+margin-top:10px;
+}
+
+button{
+background:#3b82f6;
+border:none;
+padding:12px 20px;
+border-radius:8px;
+color:white;
+font-weight:bold;
+cursor:pointer;
+margin-top:10px;
+}
+
+button:hover{
+background:#2563eb;
+}
+
+.step{
+margin-top:15px;
+padding:15px;
+background:#334155;
+border-radius:8px;
+}
+
+.vector{
+font-size:12px;
+color:#a5f3fc;
+}
+
+.highlight{
+background:#16a34a;
+padding:10px;
+border-radius:6px;
+margin-top:5px;
+}
+
+.result{
+background:#22c55e;
+padding:15px;
+border-radius:8px;
+margin-top:10px;
+color:black;
+font-weight:bold;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>RAG Simulator (Brain + Books)</h1>
+
+<div class="card">
+
+<h3>1. Knowledge Base (Books)</h3>
+
+<textarea id="documents">
+Employees can take 20 days of annual leave.
+The office opens at 9 AM and closes at 6 PM.
+Health insurance covers employees and their families.
+Remote work is allowed twice per week.
+</textarea>
+
+<button onclick="createChunks()">Create Chunks</button>
+
+<div id="chunks"></div>
+
+</div>
+
+<div class="card">
+
+<h3>2. User Question</h3>
+
+<input id="query" placeholder="Example: What is the leave policy?">
+
+<button onclick="generateEmbedding()">Generate Query Embedding</button>
+
+<div id="queryEmbedding"></div>
+
+</div>
+
+<div class="card">
+
+<h3>3. Similarity Search</h3>
+
+<button onclick="searchVectors()">Find Most Relevant Chunk</button>
+
+<div id="similarity"></div>
+
+</div>
+
+<div class="card">
+
+<h3>4. Prompt Augmentation</h3>
+
+<div id="prompt"></div>
+
+</div>
+
+<div class="card">
+
+<h3>5. LLM Generated Answer</h3>
+
+<button onclick="generateAnswer()">Generate Answer</button>
+
+<div id="answer"></div>
+
+</div>
+
+</div>
+
+<script>
+
+let chunks=[]
+let embeddings=[]
+let queryVector=[]
+
+function fakeEmbedding(text){
+
+let arr=[]
+
+for(let i=0;i<5;i++){
+
+arr.push(Math.random().toFixed(2))
+
+}
+
+return arr
+
+}
+
+function createChunks(){
+
+let docs=document.getElementById("documents").value.split("\n")
+
+chunks=docs
+
+embeddings=[]
+
+let html=""
+
+docs.forEach((doc,i)=>{
+
+let vec=fakeEmbedding(doc)
+
+embeddings.push(vec)
+
+html+=`
+<div class="step">
+<b>Chunk ${i+1}</b>: ${doc}
+<div class="vector">Embedding: [${vec}]</div>
+</div>
+`
+
+})
+
+document.getElementById("chunks").innerHTML=html
+
+}
+
+function generateEmbedding(){
+
+let q=document.getElementById("query").value
+
+queryVector=fakeEmbedding(q)
+
+document.getElementById("queryEmbedding").innerHTML=`
+<div class="step">
+Query: ${q}
+<div class="vector">Embedding: [${queryVector}]</div>
+</div>
+`
+
+}
+
+function cosineSim(a,b){
+
+let score=0
+
+for(let i=0;i<a.length;i++){
+
+score+=a[i]*b[i]
+
+}
+
+return score.toFixed(3)
+
+}
+
+let bestChunk=""
+
+function searchVectors(){
+
+let html=""
+
+let bestScore=0
+
+chunks.forEach((chunk,i)=>{
+
+let score=cosineSim(queryVector,embeddings[i])
+
+html+=`
+<div class="step">
+Chunk: ${chunk}
+<br>
+Similarity Score: ${score}
+</div>
+`
+
+if(score>bestScore){
+
+bestScore=score
+bestChunk=chunk
+
+}
+
+})
+
+html+=`
+<div class="highlight">
+Most Relevant Chunk Retrieved:
+<br>
+${bestChunk}
+</div>
+`
+
+document.getElementById("similarity").innerHTML=html
+
+document.getElementById("prompt").innerHTML=`
+<div class="step">
+<b>Augmented Prompt Sent to LLM</b>
+
+<br><br>
+
+Context:
+${bestChunk}
+
+<br><br>
+
+Question:
+${document.getElementById("query").value}
+
+</div>
+`
+
+}
+
+function generateAnswer(){
+
+let answer=`
+Based on retrieved knowledge:
+
+"${bestChunk}"
+
+Answer:
+${bestChunk}
+`
+
+document.getElementById("answer").innerHTML=`
+<div class="result">
+${answer}
+</div>
+`
+
+}
+
+</script>
+
+</body>
+</html>
