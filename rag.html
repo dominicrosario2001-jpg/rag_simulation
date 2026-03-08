@@ -33,7 +33,7 @@ margin-bottom:20px;
 
 textarea{
 width:100%;
-height:100px;
+height:110px;
 border-radius:8px;
 padding:10px;
 border:none;
@@ -72,14 +72,15 @@ border-radius:8px;
 
 .vector{
 font-size:12px;
-color:#a5f3fc;
+color:#67e8f9;
+margin-top:5px;
 }
 
 .highlight{
 background:#16a34a;
-padding:10px;
+padding:12px;
 border-radius:6px;
-margin-top:5px;
+margin-top:10px;
 }
 
 .result{
@@ -89,6 +90,13 @@ border-radius:8px;
 margin-top:10px;
 color:black;
 font-weight:bold;
+}
+
+.similarity{
+margin-top:10px;
+padding:10px;
+background:#475569;
+border-radius:6px;
 }
 
 </style>
@@ -102,16 +110,16 @@ font-weight:bold;
 
 <div class="card">
 
-<h3>1. Knowledge Base (Books)</h3>
+<h3>1. Knowledge Base (Documents)</h3>
 
 <textarea id="documents">
 Employees can take 20 days of annual leave.
-The office opens at 9 AM and closes at 6 PM.
-Health insurance covers employees and their families.
 Remote work is allowed twice per week.
+Health insurance covers employees and families.
+Office opens at 9 AM and closes at 6 PM.
 </textarea>
 
-<button onclick="createChunks()">Create Chunks</button>
+<button onclick="createChunks()">Create Chunks + Embeddings</button>
 
 <div id="chunks"></div>
 
@@ -131,7 +139,7 @@ Remote work is allowed twice per week.
 
 <div class="card">
 
-<h3>3. Similarity Search</h3>
+<h3>3. Vector Similarity Search</h3>
 
 <button onclick="searchVectors()">Find Most Relevant Chunk</button>
 
@@ -141,7 +149,7 @@ Remote work is allowed twice per week.
 
 <div class="card">
 
-<h3>4. Prompt Augmentation</h3>
+<h3>4. Prompt Sent To LLM</h3>
 
 <div id="prompt"></div>
 
@@ -164,18 +172,58 @@ Remote work is allowed twice per week.
 let chunks=[]
 let embeddings=[]
 let queryVector=[]
+let bestChunk=""
 
-function fakeEmbedding(text){
+function createEmbedding(text){
 
-let arr=[]
+text = text.toLowerCase()
 
-for(let i=0;i<5;i++){
+let words = text.split(/\W+/)
 
-arr.push(Math.random().toFixed(2))
+let vector = new Array(10).fill(0)
+
+words.forEach(word => {
+
+let hash = 0
+
+for(let i=0;i<word.length;i++){
+
+hash = (hash << 5) - hash + word.charCodeAt(i)
+
+hash = hash & hash
 
 }
 
-return arr
+let index = Math.abs(hash) % vector.length
+
+vector[index] += 1
+
+})
+
+return vector
+
+}
+
+function cosineSim(a,b){
+
+let dot=0
+let magA=0
+let magB=0
+
+for(let i=0;i<a.length;i++){
+
+dot+=a[i]*b[i]
+
+magA+=a[i]*a[i]
+
+magB+=b[i]*b[i]
+
+}
+
+magA=Math.sqrt(magA)
+magB=Math.sqrt(magB)
+
+return (dot/(magA*magB+0.0001)).toFixed(3)
 
 }
 
@@ -191,14 +239,14 @@ let html=""
 
 docs.forEach((doc,i)=>{
 
-let vec=fakeEmbedding(doc)
+let vec=createEmbedding(doc)
 
 embeddings.push(vec)
 
 html+=`
 <div class="step">
 <b>Chunk ${i+1}</b>: ${doc}
-<div class="vector">Embedding: [${vec}]</div>
+<div class="vector">Embedding: [${vec.join(", ")}]</div>
 </div>
 `
 
@@ -212,32 +260,16 @@ function generateEmbedding(){
 
 let q=document.getElementById("query").value
 
-queryVector=fakeEmbedding(q)
+queryVector=createEmbedding(q)
 
 document.getElementById("queryEmbedding").innerHTML=`
 <div class="step">
 Query: ${q}
-<div class="vector">Embedding: [${queryVector}]</div>
+<div class="vector">Embedding: [${queryVector.join(", ")}]</div>
 </div>
 `
 
 }
-
-function cosineSim(a,b){
-
-let score=0
-
-for(let i=0;i<a.length;i++){
-
-score+=a[i]*b[i]
-
-}
-
-return score.toFixed(3)
-
-}
-
-let bestChunk=""
 
 function searchVectors(){
 
@@ -247,13 +279,13 @@ let bestScore=0
 
 chunks.forEach((chunk,i)=>{
 
-let score=cosineSim(queryVector,embeddings[i])
+let score=parseFloat(cosineSim(queryVector,embeddings[i]))
 
 html+=`
-<div class="step">
+<div class="similarity">
 Chunk: ${chunk}
 <br>
-Similarity Score: ${score}
+Similarity Score: <b>${score}</b>
 </div>
 `
 
@@ -268,9 +300,9 @@ bestChunk=chunk
 
 html+=`
 <div class="highlight">
-Most Relevant Chunk Retrieved:
-<br>
-${bestChunk}
+Most Relevant Retrieved Chunk:
+<br><br>
+<b>${bestChunk}</b>
 </div>
 `
 
@@ -278,16 +310,19 @@ document.getElementById("similarity").innerHTML=html
 
 document.getElementById("prompt").innerHTML=`
 <div class="step">
-<b>Augmented Prompt Sent to LLM</b>
+
+<b>Augmented Prompt</b>
 
 <br><br>
 
 Context:
+<br>
 ${bestChunk}
 
 <br><br>
 
-Question:
+User Question:
+<br>
 ${document.getElementById("query").value}
 
 </div>
